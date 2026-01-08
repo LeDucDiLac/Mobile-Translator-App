@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-</resources>
+    <color name="purple_500">#FF6200EE</color>
+
+    <color name="screen_background">#F5F5F5</color>  <color name="card_background">#FFFFFF</color>    <color name="text_primary">#000000</color>       <color name="input_background">#FFFFFF</color>
+    <color name="output_background">#E8F0FE</color>  <color name="brand_primary">#1A73E8</color>      </resources>

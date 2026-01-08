@@ -3,29 +3,126 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/screen_background">  <androidx.cardview.widget.CardView
+    android:id="@+id/card_language_bar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/card_background"
+    app:cardElevation="4dp"
+    app:layout_constraintTop_toTopOf="parent">
 
-    <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
+
+        <Spinner
+            android:id="@+id/spinner_source_lang"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:spinnerMode="dropdown"
+            android:backgroundTint="@color/text_primary"/>
+
+        <ImageView
+            android:id="@+id/btn_swap_lang"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            app:tint="@color/text_primary" /> <Spinner
+        android:id="@+id/spinner_target_lang"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Translation Screen"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toTopOf="@+id/btn_test_onnx"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
+        android:layout_weight="1"
+        android:gravity="end"
+        android:spinnerMode="dropdown"
+        android:textAlignment="viewEnd"
+        android:backgroundTint="@color/text_primary"/>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="@color/input_background"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="2dp"
+        app:layout_constraintTop_toBottomOf="@+id/card_language_bar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <EditText
+                android:id="@+id/et_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:hint="Enter text"
+                android:textColor="@color/text_primary"
+                android:textColorHint="#808080"
+                android:minHeight="100dp"
+                android:gravity="top|start"
+                android:textSize="22sp" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
     <Button
-        android:id="@+id/btn_test_onnx"
+        android:id="@+id/btn_translate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Test ONNX Model"
-        android:layout_marginTop="20dp"
-        app:layout_constraintTop_toBottomOf="@+id/tv_title"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:layout_marginTop="16dp"
+        android:text="Translate"
+        android:backgroundTint="@color/brand_primary"
+        android:textColor="#FFFFFF"
+        app:layout_constraintEnd_toEndOf="@+id/card_input"
+        app:layout_constraintStart_toStartOf="@+id/card_input"
+        app:layout_constraintTop_toBottomOf="@+id/card_input" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_output"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="@color/output_background"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp"
+        app:layout_constraintTop_toBottomOf="@+id/btn_translate">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tv_output"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="..."
+                android:textColor="@color/brand_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_model_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Model: Ready"
+                android:textSize="12sp"
+                android:textColor="@color/text_primary"
+                android:alpha="0.7"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
