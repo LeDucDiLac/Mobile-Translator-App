@@ -1,0 +1,41 @@
+# --- Android Studio & Gradle Standards ---
+*.iml
+.gradle/
+.idea/
+local.properties
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+output.json
+
+# --- App Specific Build Output ---
+app/build/
+app/release/
+
+# --- Kotlin & Room Generated Code ---
+# (Usually handled by 'build/', but just in case)
+*/build/
+
+# --- Python & Colab (For your conversion scripts) ---
+# You don't want junk files from your Python runs cluttering the Android repo
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+.env
+
+# --- AI Models (Crucial Decision) ---
+# 1. TEMPORARY or FAILED conversion files
+*.tflite
+*.onnx.data
+dummy.onnx.data
+
+# 2. LARGE FILES (>100MB)
+# GitHub will BLOCK your push if you commit a file larger than 100MB.
+# If your final production model is huge, uncomment the line below:
+# *.onnx
+
+# Note: Keep 'dummy.onnx' committed so your teammates/professor can run the app immediately.
