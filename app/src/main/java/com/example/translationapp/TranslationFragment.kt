@@ -1,28 +1,22 @@
 package com.example.translationapp
 
+import androidx.core.content.res.ResourcesCompat
 import android.os.Bundle
+import android.util.Log
 import android.view.View
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.Spinner
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
-import java.nio.FloatBuffer
-
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.nio.LongBuffer
 
 class TranslationFragment : Fragment(R.layout.fragment_translation) {
 
-    // Connect to the ViewModel (Database)
     private val viewModel: TranslationViewModel by viewModels {
         TranslationViewModelFactory((requireActivity().application as TranslationApplication).database.historyDao())
     }
@@ -30,91 +24,116 @@ class TranslationFragment : Fragment(R.layout.fragment_translation) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // --- 1. SETUP UI ELEMENTS ---
-        val spinnerSource = view.findViewById<Spinner>(R.id.spinner_source_lang)
-        val spinnerTarget = view.findViewById<Spinner>(R.id.spinner_target_lang)
-        val btnSwap = view.findViewById<ImageView>(R.id.btn_swap_lang)
+        // UI Setup
         val etInput = view.findViewById<EditText>(R.id.et_input)
         val btnTranslate = view.findViewById<Button>(R.id.btn_translate)
         val tvOutput = view.findViewById<TextView>(R.id.tv_output)
         val tvStatus = view.findViewById<TextView>(R.id.tv_model_status)
+        val spinnerSource = view.findViewById<Spinner>(R.id.spinner_source_lang)
 
-        // --- 2. SETUP LANGUAGE SPINNERS (Mock Data) ---
-        // In the future, these will come from your model metadata
+        // Setup simple language spinner
         val languages = arrayOf("Vietnamese", "Khmer", "English")
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, languages)
-
         spinnerSource.adapter = adapter
-        spinnerTarget.adapter = adapter
-        spinnerTarget.setSelection(1) // Default to Khmer
-
-        // Swap Button Logic
-        btnSwap.setOnClickListener {
-            val sourcePos = spinnerSource.selectedItemPosition
-            spinnerSource.setSelection(spinnerTarget.selectedItemPosition)
-            spinnerTarget.setSelection(sourcePos)
-        }
 
         btnTranslate.setOnClickListener {
-            val inputText = etInput.text.toString()
-            if (inputText.isBlank()) return@setOnClickListener
+            val inputText = etInput.text.toString().trim()
+            if (inputText.isEmpty()) {
+                etInput.error = "Please enter text"
+                return@setOnClickListener
+            }
 
-            tvStatus.text = "Model: Running..."
-            btnTranslate.isEnabled = false // Disable button so they don't click twice
+            // Disable UI while processing
+            btnTranslate.isEnabled = false
+            tvStatus.text = "Status: Loading..."
+            tvOutput.text = "..."
 
-            // --- START COROUTINE ---
-            lifecycleScope.launch(Dispatchers.Main) { // 1. Start on Main Thread (to update UI)
+            // --- START ASYNC TRANSLATION ---
+            lifecycleScope.launch(Dispatchers.Main) {
+                try {
+                    val result = withContext(Dispatchers.Default) {
+                        performTranslation(inputText)
+                    }
 
-                // 2. Switch to Background Thread (Worker) for heavy AI math
-                val onnxResult = withContext(Dispatchers.Default) {
-                    runOnnxDummy() // Now this runs safely in background!
+                    // --- UPDATE UI ---
+                    val tvOutput = view.findViewById<TextView>(R.id.tv_output)
+                    tvOutput.text = result
+
+                    // SWITCH FONT HERE
+                    updateOutputFont(result)
+
+                    tvStatus.text = "Status: Success"
+                    viewModel.addTranslation(inputText, result)
+
+                } catch (e: Exception) {
+                    Log.e("TranslationApp", "Inference Failed", e)
+                    tvStatus.text = "Error: ${e.message}"
+                    tvOutput.text = "Translation Failed"
+                } finally {
+                    btnTranslate.isEnabled = true
                 }
-
-                // 3. Back on Main Thread automatically
-                val translatedText = "Translated: $inputText ($onnxResult)"
-
-                tvOutput.text = translatedText
-                tvStatus.text = "Model: Success"
-                btnTranslate.isEnabled = true
-
-                // Save to DB (ViewModel already handles its own coroutines, so this is safe)
-                viewModel.addTranslation(inputText, translatedText)
             }
         }
     }
 
-    private fun runOnnxDummy(): String {
-        return try {
-            val assetManager = requireContext().assets
-            val env = OrtEnvironment.getEnvironment()
+    // --- THE REAL AI LOGIC ---
+    private fun performTranslation(text: String): String {
+        val env = OrtEnvironment.getEnvironment()
+        val tokenizer = StandardTokenizer(requireContext())
 
-            // Read model
-            val modelBytes = assetManager.open("dummy.onnx").readBytes()
-            val session = env.createSession(modelBytes)
+        // 1. Tokenize Input
+        // Convert "Hello" -> [34, 55, 1, 0...]
+        val inputIds = tokenizer.tokenize(text, maxLength = 60)
 
-            // Input Data (Dummy numbers)
-            val inputData = floatArrayOf(1f, 2f, 3f, 4f, 5f)
-            val inputTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(inputData), longArrayOf(1, 5))
+        // 2. Prepare ONNX Tensor
+        // Shape: [1, 20] (Batch Size 1, Sequence Length 20)
+        val shape = longArrayOf(1, inputIds.size.toLong())
+        val inputBuffer = LongBuffer.wrap(inputIds)
+        val inputTensor = OnnxTensor.createTensor(env, inputBuffer, shape)
 
-            // Run Inference
-            val inputs = mapOf("input_tensor" to inputTensor)
-            val result = session.run(inputs)
-            val outputTensor = result[0] as OnnxTensor
+        // 3. Load Session & Run Inference
+        // Note: In production, load the session ONCE in onCreate, not every click.
+        val modelBytes = requireContext().assets.open("model.onnx").readBytes()
+        val session = env.createSession(modelBytes)
 
-            // Get Result
-            val outputArray = FloatArray(5)
-            outputTensor.floatBuffer.get(outputArray)
+        // "input_ids" must match the name in your Python script:
+        // torch.onnx.export(..., input_names=['input_ids'], ...)
+        val inputs = mapOf("input_ids" to inputTensor)
 
-            // Cleanup
-            result.close()
-            session.close()
-            env.close()
+        val results = session.run(inputs)
 
-            // Return a snippet of the result to prove it ran
-            "[${outputArray[0].toString().take(3)}..]"
+        // 4. Extract Output
+        // Assuming model returns [1, Sequence_Length] of IDs
+        val outputTensor = results[0] as OnnxTensor
+        val outputBuffer = outputTensor.longBuffer
+        val outputArray = LongArray(outputBuffer.remaining())
+        outputBuffer.get(outputArray)
 
-        } catch (e: Exception) {
-            "Error"
+        // 5. Cleanup
+        inputTensor.close()
+        results.close()
+        session.close() // Close session to free RAM
+        env.close()
+
+        // 6. Decode Output
+        // Convert [55, 99...] -> "Xin chào"
+        return tokenizer.decode(outputArray)
+    }
+    private fun updateOutputFont(text: String) {
+        // 1. Regex to check for ANY Khmer character
+        val isKhmer = text.contains(Regex("[\\u1780-\\u17FF]"))
+
+        // 2. Load the font dynamically
+        val typeface = if (isKhmer) {
+            // Load Battambang for Khmer
+            ResourcesCompat.getFont(requireContext(), R.font.battambang_regular)
+        } else {
+            // Reset to standard Roboto/Default for En/Vi
+            android.graphics.Typeface.DEFAULT
         }
+
+        // 3. Apply to TextView
+        val tvOutput = requireView().findViewById<TextView>(R.id.tv_output)
+        tvOutput.typeface = typeface
     }
 }
